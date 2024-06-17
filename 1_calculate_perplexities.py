@@ -1,5 +1,5 @@
 import json
-from june_perplexity_calculation import calculate_perplexity_for_time_window
+from perplexity_calculation import calculate_perplexity_for_time_window
 
 def main():
     print("Starting perplexity calculation script.")
