@@ -24,9 +24,20 @@ def is_binary_choice(choices):
     return set(choices) == {"yes", "no"}
 
 def get_forecast_data(result_data, autocast_data):
+    total_questions = len(result_data)
     correct_answers = 0
     correct_model_predictions = 0
     consistent_forecasts = 0
+
+    correct_answers_tf = 0
+    correct_model_predictions_tf = 0
+    consistent_forecasts_tf = 0
+    tf_questions_count = 0
+
+    correct_answers_mcq = 0
+    correct_model_predictions_mcq = 0
+    consistent_forecasts_mcq = 0
+    mcq_questions_count = 0
 
     for result in result_data:
         result_id = result['id']
@@ -49,12 +60,14 @@ def get_forecast_data(result_data, autocast_data):
             else:
                 print(f"Error: Correct answer for ID {result_id} is not 'yes' or 'no'.")
                 continue
+            tf_questions_count += 1
         else:
             try:
                 correct_answer_index = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.index(correct_answer)
             except ValueError:
                 print(f"Error: Correct answer for ID {result_id} is not a valid letter.")
                 continue
+            mcq_questions_count += 1
 
         correct_answer_text = choices[correct_answer_index]
 
@@ -66,7 +79,7 @@ def get_forecast_data(result_data, autocast_data):
         crowd_forecasts = autocast_question['crowd']
         avg_crowd_forecasts = average_forecasts(crowd_forecasts)
         if is_binary_choice(choices):
-            people_forecast_index = 0 if avg_crowd_forecasts <= 0.5 else 1
+            people_forecast_index = 0 if avg_crowd_forecasts >= 0.5 else 1
         else:
             people_forecast_index = np.argmax(avg_crowd_forecasts)
 
@@ -86,28 +99,72 @@ def get_forecast_data(result_data, autocast_data):
 
         print(f"\tFor question ID {result_id}: \"{question_text}\"")
         print(f"\tThe correct answer is: {correct_answer} ({correct_answer_text})")
-        print(f"\tForecast by people: {people_forecast_choice} with average probability {avg_crowd_forecasts if isinstance(avg_crowd_forecasts, float) else avg_crowd_forecasts[people_forecast_index]:.4f}")
-        print(f"\tForecast by model: {model_forecast_choice} with average perplexity {avg_perplexity_values[model_forecast_index]:.4f}\n")
+        print(
+            f"\tForecast by people: {people_forecast_choice} with average probability {avg_crowd_forecasts if isinstance(avg_crowd_forecasts, float) else avg_crowd_forecasts[people_forecast_index]:.4f}")
+        print(
+            f"\tForecast by model: {model_forecast_choice} with average perplexity {avg_perplexity_values[model_forecast_index]:.4f}\n")
 
         if people_forecast_index == correct_answer_index:
             correct_answers += 1
+            if is_binary_choice(choices):
+                correct_answers_tf += 1
+            else:
+                correct_answers_mcq += 1
         if model_forecast_index == correct_answer_index:
             correct_model_predictions += 1
+            if is_binary_choice(choices):
+                correct_model_predictions_tf += 1
+            else:
+                correct_model_predictions_mcq += 1
         if people_forecast_choice == model_forecast_choice:
             consistent_forecasts += 1
+            if is_binary_choice(choices):
+                consistent_forecasts_tf += 1
+            else:
+                consistent_forecasts_mcq += 1
 
-    total_questions = len(result_data)
     people_accuracy = (correct_answers / total_questions) * 100
     model_accuracy = (correct_model_predictions / total_questions) * 100
     consistency_percentage = (consistent_forecasts / total_questions) * 100
 
-    print(f"People's forecasts were correct for {correct_answers}/{total_questions} questions ({people_accuracy:.2f}%).")
-    print(f"Model's forecasts were correct for {correct_model_predictions}/{total_questions} questions ({model_accuracy:.2f}%).")
-    print(f"The forecasts of people and the model matched for {consistent_forecasts}/{total_questions} questions ({consistency_percentage:.2f}%).")
+    if tf_questions_count > 0:
+        people_accuracy_tf = (correct_answers_tf / tf_questions_count) * 100
+        model_accuracy_tf = (correct_model_predictions_tf / tf_questions_count) * 100
+        consistency_percentage_tf = (consistent_forecasts_tf / tf_questions_count) * 100
+
+    if mcq_questions_count > 0:
+        people_accuracy_mcq = (correct_answers_mcq / mcq_questions_count) * 100
+        model_accuracy_mcq = (correct_model_predictions_mcq / mcq_questions_count) * 100
+        consistency_percentage_mcq = (consistent_forecasts_mcq / mcq_questions_count) * 100
+
+    print(
+        f"People's forecasts were correct for {correct_answers}/{total_questions} questions ({people_accuracy:.2f}%).")
+    print(
+        f"Model's forecasts were correct for {correct_model_predictions}/{total_questions} questions ({model_accuracy:.2f}%).")
+    print(
+        f"The forecasts of people and the model matched for {consistent_forecasts}/{total_questions} questions ({consistency_percentage:.2f}%).")
+
+    if tf_questions_count > 0:
+        print(f"\nTrue/False Questions: {tf_questions_count} total")
+        print(
+            f"People's forecasts were correct for {correct_answers_tf}/{tf_questions_count} questions ({people_accuracy_tf:.2f}%).")
+        print(
+            f"Model's forecasts were correct for {correct_model_predictions_tf}/{tf_questions_count} questions ({model_accuracy_tf:.2f}%).")
+        print(
+            f"The forecasts of people and the model matched for {consistent_forecasts_tf}/{tf_questions_count} questions ({consistency_percentage_tf:.2f}%).")
+
+    if mcq_questions_count > 0:
+        print(f"\nMultiple-Choice Questions (MCQ) with more than two options: {mcq_questions_count} total")
+        print(
+            f"People's forecasts were correct for {correct_answers_mcq}/{mcq_questions_count} questions ({people_accuracy_mcq:.2f}%).")
+        print(
+            f"Model's forecasts were correct for {correct_model_predictions_mcq}/{mcq_questions_count} questions ({model_accuracy_mcq:.2f}%).")
+        print(
+            f"The forecasts of people and the model matched for {consistent_forecasts_mcq}/{mcq_questions_count} questions ({consistency_percentage_mcq:.2f}%).")
 
 def main():
-    result_filepath = 'result_30.json'  
-    autocast_filepath = 'autocast_adjusted.json' 
+    result_filepath = 'result.json'
+    autocast_filepath = 'autocast_adjusted.json'
 
     print("Loading JSON data...")
     result_data = load_json_data(result_filepath)
