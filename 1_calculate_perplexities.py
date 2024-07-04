@@ -5,7 +5,7 @@ def main():
     print("Starting perplexity calculation script.")
 
     json_input_path = '/autocast_adjusted.json'
-    json_output_path = '/june_output.json'
+    json_output_path = '/july_output.json'
     root_directory = '/nanoGPT'
 
     try:
